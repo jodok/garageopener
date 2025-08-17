@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Garage Opener Uninstall Script
+# Raspberry Pi Relay Module Uninstall Script
 
 set -e
 
-echo "=== Garage Opener Uninstall Script ==="
+echo "=== Raspberry Pi Relay Module Uninstall Script ==="
 
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
@@ -14,12 +14,12 @@ fi
 
 # Stop and disable the service
 echo "Stopping and disabling service..."
-systemctl stop garage-opener.service 2>/dev/null || true
-systemctl disable garage-opener.service 2>/dev/null || true
+systemctl stop relay-module.service 2>/dev/null || true
+systemctl disable relay-module.service 2>/dev/null || true
 
 # Remove systemd service file
 echo "Removing systemd service file..."
-rm -f /etc/systemd/system/garage-opener.service
+rm -f /etc/systemd/system/relay-module.service
 systemctl daemon-reload
 
 # Note: Installation directory is git checkout, not removed

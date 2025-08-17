@@ -1,5 +1,5 @@
 [Unit]
-Description=Garage Opener HTTP Service
+Description=Raspberry Pi Relay Module REST API Service
 After=network.target
 Wants=network.target
 
@@ -7,13 +7,14 @@ Wants=network.target
 Type=simple
 User=jodok
 Group=jodok
-WorkingDirectory=/home/jodok/sandbox/garage-opener
-ExecStart=/usr/bin/python3 /home/jodok/sandbox/garage-opener/garage_opener.py
+WorkingDirectory=/home/jodok/sandbox/raspberry-pi-relay-module
+ExecStart=/usr/bin/python3 /home/jodok/sandbox/raspberry-pi-relay-module/relay_module.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=garage-opener
+SyslogIdentifier=raspberry-pi-relay
+Environment=RELAY_SECRET=your_secure_secret_here
 
 # GPIO access requires special permissions
 # The install script will set up udev rules for GPIO access

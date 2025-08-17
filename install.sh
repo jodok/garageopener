@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Garage Opener Installation Script
-# This script installs the garage opener service on a Raspberry Pi
+# Raspberry Pi Relay Module Installation Script
+# This script installs the relay module service on a Raspberry Pi
 
 set -e
 
-echo "=== Garage Opener Installation Script ==="
+echo "=== Raspberry Pi Relay Module Installation Script ==="
 
 # Check if running as root (via sudo)
 if [[ $EUID -ne 0 ]]; then
@@ -25,7 +25,7 @@ echo "Using installation directory: $INSTALL_DIR"
 
 # Install systemd service
 echo "Installing systemd service..."
-cp "$INSTALL_DIR/garage-opener.service" /etc/systemd/system/
+cp "$INSTALL_DIR/relay-module.service" /etc/systemd/system/
 systemctl daemon-reload
 
 # Install dependencies
@@ -45,15 +45,15 @@ echo "Using systemd logging..."
 
 # Enable and start the service
 echo "Enabling and starting service..."
-systemctl enable garage-opener.service
-systemctl start garage-opener.service
+systemctl enable relay-module.service
+systemctl start relay-module.service
 
 # Check service status
 echo "Checking service status..."
-if systemctl is-active --quiet garage-opener.service; then
+if systemctl is-active --quiet relay-module.service; then
     echo "✅ Service is running successfully!"
 else
-    echo "❌ Service failed to start. Check logs with: journalctl -u garage-opener.service"
+    echo "❌ Service failed to start. Check logs with: journalctl -u relay-module.service"
     exit 1
 fi
 
@@ -67,15 +67,19 @@ echo ""
 echo "Note: This assumes you're running the script from the git checkout directory"
 echo ""
 echo "Available endpoints:"
-echo "  GET /open   - Trigger garage opening"
+echo "  POST /relay/trigger - Trigger relay on specified GPIO pin"
+echo "  GET  /health        - Health check endpoint"
+echo "  GET  /status        - Service status and configuration"
 echo ""
 echo "Useful commands:"
-echo "  sudo systemctl status garage-opener.service  # Check service status"
-echo "  sudo systemctl stop garage-opener.service    # Stop the service"
-echo "  sudo systemctl start garage-opener.service   # Start the service"
-echo "  sudo systemctl restart garage-opener.service # Restart the service"
-echo "  sudo journalctl -u garage-opener.service -f  # Follow logs in real-time"
-echo "  sudo journalctl -u garage-opener.service -n 50  # Show last 50 log entries"
+echo "  sudo systemctl status relay-module.service  # Check service status"
+echo "  sudo systemctl stop relay-module.service    # Stop the service"
+echo "  sudo systemctl start relay-module.service   # Start the service"
+echo "  sudo systemctl restart relay-module.service # Restart the service"
+echo "  sudo journalctl -u relay-module.service -f  # Follow logs in real-time"
+echo "  sudo journalctl -u relay-module.service -n 50  # Show last 50 log entries"
 echo ""
 echo "Test the service:"
-echo "  curl http://localhost:8080/open"
+echo "  curl http://localhost:8080/health"
+echo "  curl http://localhost:8080/status"
+echo "  python3 test_relay_api.py  # Run the test script"

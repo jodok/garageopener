@@ -1,11 +1,14 @@
-# Garage Opener
+# Raspberry Pi Relay Module
 
-A Python HTTP daemon for opening a garage door via HTTP commands on a Raspberry Pi.
+A Python HTTP daemon for controlling relay modules via HTTP commands on a Raspberry Pi. This service provides a REST API to trigger relays connected to GPIO pins 23 and 28.
 
 ## Features
 
 - HTTP server listening on port 8080
-- `/open` endpoint to trigger garage opening via GPIO pin 23
+- REST API endpoints for relay control
+- Support for multiple GPIO pins (23, 28)
+- HMAC-SHA256 authorization for security
+- Health check and status endpoints
 - Automatic systemd service management
 - Systemd journal logging
 
@@ -23,8 +26,8 @@ A Python HTTP daemon for opening a garage door via HTTP commands on a Raspberry 
 
    ```bash
    cd ~/sandbox
-   git clone <repository-url> garage-opener
-   cd garage-opener
+   git clone <repository-url> raspberry-pi-relay-module
+   cd raspberry-pi-relay-module
    ```
 
 2. **Make the installation script executable and run it:**
@@ -43,95 +46,210 @@ The installation script will:
 - Start the service automatically
 - Set up systemd logging
 
+## API Endpoints
+
+### POST `/relay/trigger`
+
+Triggers a relay on the specified GPIO pin.
+
+**Request Body:**
+
+```json
+{
+  "gpio_pin": 23
+}
+```
+
+**Headers:**
+
+```
+Content-Type: application/json
+Authorization: Bearer <hmac-sha256-hash>
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Relay triggered on GPIO 23",
+  "gpio_pin": 23,
+  "pulse_duration": 0.25,
+  "timestamp": "2024-01-15T10:30:00.123456"
+}
+```
+
+### GET `/health`
+
+Health check endpoint.
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "service": "raspberry-pi-relay-module",
+  "timestamp": "2024-01-15T10:30:00.123456"
+}
+```
+
+### GET `/status`
+
+Service status and configuration information.
+
+**Response:**
+
+```json
+{
+  "status": "running",
+  "service": "raspberry-pi-relay-module",
+  "supported_gpio_pins": [23, 28],
+  "pulse_duration": 0.25,
+  "timestamp": "2024-01-15T10:30:00.123456"
+}
+```
+
 ## Usage
 
-### HTTP Endpoints
+### Setting the Authorization Secret
 
-- **GET `/open`** - Triggers garage opening
-  - Returns JSON response with status and timestamp
-  - Sets GPIO pin 23 LOW for 250ms, then HIGH
-
-### Examples
+Set the `RELAY_SECRET` environment variable in the systemd service file or export it before running:
 
 ```bash
-# Open the garage
-curl http://localhost:8080/open
+# Edit the service file
+sudo nano /etc/systemd/system/garage-opener.service
 
-# From another device on the network
-curl http://192.168.1.100:8080/open
+# Or export for testing
+export RELAY_SECRET="your_secure_secret_here"
 ```
 
-### Service Management
+### Example API Calls
 
 ```bash
-# Check service status
-sudo systemctl status garage-opener.service
+# Health check
+curl http://localhost:8080/health
 
-# Start the service
-sudo systemctl start garage-opener.service
+# Get status
+curl http://localhost:8080/status
 
-# Stop the service
-sudo systemctl stop garage-opener.service
-
-# Restart the service
-sudo systemctl restart garage-opener.service
-
-# View logs in real-time
-sudo journalctl -u garage-opener.service -f
-
-# View recent logs
-sudo journalctl -u garage-opener.service -n 50
-
-
+# Trigger relay on GPIO 23 (requires proper authorization)
+curl -X POST http://localhost:8080/relay/trigger \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <generated-hash>" \
+  -d '{"gpio_pin": 23}'
 ```
 
-## Testing
+### Using the Test Script
 
-Run the test script to verify everything is working:
+The included test script demonstrates proper API usage:
 
 ```bash
 # Install requests if not already installed
 pip3 install requests
 
+# Set the secret
+export RELAY_SECRET="your_secure_secret_here"
+
 # Run the test
-python3 test_service.py
+python3 test_relay_api.py
+```
+
+## Authorization
+
+The API uses HMAC-SHA256 for authorization. The hash is calculated from the request body using the secret key.
+
+**Python example:**
+
+```python
+import hashlib
+import hmac
+import json
+
+secret = "your_secure_secret_here"
+data = {"gpio_pin": 23}
+body = json.dumps(data)
+
+auth_hash = hmac.new(
+    secret.encode(),
+    body.encode(),
+    hashlib.sha256
+).hexdigest()
+
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {auth_hash}"
+}
+```
+
+## Service Management
+
+```bash
+# Check service status
+sudo systemctl status relay-module.service
+
+# Start the service
+sudo systemctl start relay-module.service
+
+# Stop the service
+sudo systemctl stop relay-module.service
+
+# Restart the service
+sudo systemctl restart relay-module.service
+
+# View logs in real-time
+sudo journalctl -u relay-module.service -f
+
+# View recent logs
+sudo journalctl -u relay-module.service -n 50
 ```
 
 ## Configuration
 
-### GPIO Pin
+### Supported GPIO Pins
 
-The service uses GPIO pin 23 by default. To change this, edit the `GPIO_PIN` variable in `garage_opener.py`.
+The service supports GPIO pins 23 and 28 by default. To modify this, edit the `SUPPORTED_GPIO_PINS` list in `garage_opener.py`.
+
+### Pulse Duration
+
+The relay is triggered by setting the GPIO pin LOW for 250ms by default. To change this, edit the `PULSE_DURATION` variable in `garage_opener.py`.
 
 ### Port
 
 The service runs on port 8080 by default. To change this, edit the `PORT` variable in `garage_opener.py`.
 
-### Logging
+### Authorization Secret
 
-Logs are written to the systemd journal and can be viewed with `journalctl`.
+Set the `RELAY_SECRET` environment variable in the systemd service file for production use.
 
 ## Hardware Setup
 
-1. Connect your garage door opener relay/switch to GPIO pin 23
+1. Connect your relay modules to GPIO pins 23 and 28
 2. Ensure proper grounding and power supply
-3. Test the connection before running the service
+3. Test the connections before running the service
+4. The relay is triggered by setting the GPIO pin LOW for 250ms
 
 ## Security Considerations
 
 ⚠️ **Important Security Notes:**
 
-- The service runs as user `jodok` with GPIO access via existing system udev rules
+- The service uses HMAC-SHA256 authorization for API access
+- Set a strong `RELAY_SECRET` in production
 - The HTTP server listens on all interfaces (0.0.0.0)
-- No authentication is implemented
 - Consider implementing:
   - Firewall rules to restrict access
-  - Authentication/authorization
   - HTTPS for encrypted communication
+  - Rate limiting
 
-### Basic Security Improvements
+### Security Best Practices
 
-1. **Restrict network access:**
+1. **Set a strong secret:**
+
+   ```bash
+   # Generate a secure random secret
+   openssl rand -hex 32
+   ```
+
+2. **Restrict network access:**
 
    ```bash
    # Allow only local network access
@@ -139,14 +257,7 @@ Logs are written to the systemd journal and can be viewed with `journalctl`.
    sudo ufw deny 8080
    ```
 
-2. **Add basic authentication** (modify the Python code):
-
-   ```python
-   # Add to the request handler
-   if not self.headers.get('Authorization') == 'Bearer your-secret-token':
-       self.send_error(401, "Unauthorized")
-       return
-   ```
+3. **Use HTTPS in production** (requires additional setup with reverse proxy)
 
 ## Troubleshooting
 
@@ -154,10 +265,10 @@ Logs are written to the systemd journal and can be viewed with `journalctl`.
 
 ```bash
 # Check service status
-sudo systemctl status garage-opener.service
+sudo systemctl status relay-module.service
 
 # View detailed logs
-sudo journalctl -u garage-opener.service -n 50
+sudo journalctl -u relay-module.service -n 50
 
 # Check if port is already in use
 sudo netstat -tlnp | grep 8080
@@ -173,6 +284,16 @@ python3 -c "import RPi.GPIO; print('GPIO module available')"
 ls -la /dev/gpiomem
 ```
 
+### Authorization errors
+
+```bash
+# Check if RELAY_SECRET is set
+echo $RELAY_SECRET
+
+# Verify the service file has the environment variable
+sudo systemctl show relay-module.service | grep Environment
+```
+
 ### Network connectivity issues
 
 ```bash
@@ -180,7 +301,7 @@ ls -la /dev/gpiomem
 sudo netstat -tlnp | grep 8080
 
 # Test local connectivity
-curl http://localhost:8080/status
+curl http://localhost:8080/health
 
 # Check firewall
 sudo ufw status
@@ -197,11 +318,11 @@ sudo ./uninstall.sh
 
 ## Files
 
-- `garage_opener.py` - Main HTTP server and GPIO control
-- `garage-opener.service` - Systemd service definition
+- `relay_module.py` - Main HTTP server and GPIO control
+- `relay-module.service` - Systemd service definition
 - `install.sh` - Installation script
 - `uninstall.sh` - Uninstallation script
-- `test_service.py` - Service testing script
+- `test_relay_api.py` - API testing script with authorization examples
 
 ## License
 
