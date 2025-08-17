@@ -73,6 +73,11 @@ class RelayModuleHandler(BaseHTTPRequestHandler):
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length).decode("utf-8")
 
+            # Log authorization attempt for debugging
+            logger.info(
+                f"Authorization attempt - Content-Length: {content_length}, Body: '{body}'"
+            )
+
             # Calculate expected hash
             expected_hash = hmac.new(
                 AUTHORIZATION_SECRET.encode(), body.encode(), hashlib.sha256
@@ -104,10 +109,23 @@ class RelayModuleHandler(BaseHTTPRequestHandler):
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length).decode("utf-8")
 
+            # Log the received body for debugging
+            logger.info(f"Received request body: '{body}' (length: {len(body)})")
+
             try:
                 data = json.loads(body)
-            except json.JSONDecodeError:
-                self.send_error(400, "Invalid JSON in request body")
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {e}, body: '{body}'")
+                self.send_response(400)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                response = {
+                    "status": "error",
+                    "message": f"Invalid JSON in request body: {str(e)}",
+                    "received_body": body,
+                    "timestamp": datetime.now().isoformat(),
+                }
+                self.wfile.write(json.dumps(response).encode())
                 return
 
             # Validate GPIO pin
