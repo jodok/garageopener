@@ -63,7 +63,7 @@ This version is specifically designed for:
 The installation script will:
 
 - Install system dependencies (`python3-rpi.gpio`, `python3-pip`, `python3-venv`)
-- Create a Python virtual environment (`venv/`)
+- Create a Python virtual environment (`.venv/`) with system packages access
 - Install Python dependencies (python-dotenv only) in the virtual environment
 - Generate a random authorization secret
 - Create a `.env` file with the secret and configuration
@@ -270,6 +270,7 @@ The service uses a Python virtual environment to manage dependencies:
 
 - **System packages**: `python3-rpi.gpio` is installed system-wide via apt (required for GPIO access)
 - **Application packages**: Only python-dotenv is installed in the virtual environment
+- **System packages access**: Virtual environment is created with `--system-site-packages` flag
 - **Location**: Virtual environment is created in `.venv/` directory
 - **Service**: Systemd service automatically uses the virtual environment's Python interpreter
 
@@ -366,13 +367,16 @@ sudo netstat -tlnp | grep 8080
 
 ```bash
 # Check if RPi.GPIO is installed system-wide
-python3 -c "import RPi.GPIO; print('GPIO module available')"
+python3 -c "import RPi.GPIO; print('GPIO module available system-wide')"
 
-# Check if virtual environment can access GPIO
+# Check if virtual environment can access system RPi.GPIO
 ./.venv/bin/python -c "import RPi.GPIO; print('GPIO module available in .venv')"
 
 # Check GPIO permissions
 ls -la /dev/gpiomem
+
+# Reinstall system RPi.GPIO if needed
+sudo apt install --reinstall python3-rpi.gpio
 ```
 
 ### Authorization errors
@@ -449,7 +453,7 @@ sudo ./uninstall.sh
 
 ### Dependencies
 
-- **Current version**: 1 package (python-dotenv only)
+- **Current version**: 1 package (python-dotenv) + system RPi.GPIO
 
 ### Documentation
 

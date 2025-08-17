@@ -33,14 +33,14 @@ echo "Installing system dependencies..."
 apt update
 apt install -y python3-rpi.gpio python3-pip python3-venv
 
-# Create and activate virtual environment
+# Create and activate virtual environment with system packages
 echo "Setting up virtual environment..."
-python3 -m venv "$INSTALL_DIR/.venv"
+python3 -m venv --system-site-packages "$INSTALL_DIR/.venv"
 "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 
 # Ensure virtual environment is owned by the user
 chown -R jodok:jodok "$INSTALL_DIR/.venv"
-echo "✅ Virtual environment created and owned by jodok user"
+echo "✅ Virtual environment created with system packages access and owned by jodok user"
 
 # Generate random secret and create .env file
 echo "Generating random authorization secret..."
