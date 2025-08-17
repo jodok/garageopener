@@ -96,9 +96,9 @@ def main():
     print(f"\nTriggering GPIO 23:")
     trigger_relay(23)
 
-    # Test GPIO 28
-    print(f"\nTriggering GPIO 28:")
-    trigger_relay(28)
+    # Test GPIO 18
+    print(f"\nTriggering GPIO 18:")
+    trigger_relay(18)
 
     # Test invalid GPIO
     print(f"\nTesting invalid GPIO 99:")

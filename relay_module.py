@@ -28,7 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-SUPPORTED_GPIO_PINS = [23, 28]  # Supported GPIO pins for relay control
+SUPPORTED_GPIO_PINS = [23, 18]  # Supported GPIO pins for relay control
 HOST = "0.0.0.0"
 PORT = 8080
 AUTHORIZATION_SECRET = os.environ.get(
@@ -331,7 +331,7 @@ Authorization: Bearer &lt;hmac-sha256-hash&gt;</div>
         <div class="test-section">
             <h4>Test Relay Trigger:</h4>
             <button class="test-button" onclick="testRelay(23)">Test GPIO 23</button>
-            <button class="test-button" onclick="testRelay(28)">Test GPIO 28</button>
+            <button class="test-button" onclick="testRelay(18)">Test GPIO 18</button>
             <div id="relay-response" class="response"></div>
         </div>
     </div>
@@ -363,7 +363,7 @@ Authorization: Bearer &lt;hmac-sha256-hash&gt;</div>
         <div class="example">{{
   "status": "running",
   "service": "raspberry-pi-relay-module",
-  "supported_gpio_pins": [23, 28],
+  "supported_gpio_pins": [23, 18],
   "pulse_duration": 0.25,
   "timestamp": "2024-01-15T10:30:00.123456"
 }}</div>

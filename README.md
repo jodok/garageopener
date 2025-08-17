@@ -7,7 +7,7 @@ A lightweight Python HTTP daemon for controlling relay modules via HTTP commands
 - **Ultra-lightweight**: Uses only standard Python libraries (no Flask)
 - **HTTP server** listening on port 8080
 - **REST API endpoints** for relay control
-- **Support for multiple GPIO pins** (23, 28)
+- **Support for multiple GPIO pins** (23, 18)
 - **HMAC-SHA256 authorization** for security
 - **Health check and status endpoints**
 - **Interactive HTML documentation** (built-in, no external dependencies)
@@ -130,7 +130,7 @@ Service status and configuration information.
 {
   "status": "running",
   "service": "raspberry-pi-relay-module",
-  "supported_gpio_pins": [23, 28],
+  "supported_gpio_pins": [23, 18],
   "pulse_duration": 0.25,
   "timestamp": "2024-01-15T10:30:00.123456"
 }
@@ -296,7 +296,7 @@ deactivate
 
 ### Supported GPIO Pins
 
-The service supports GPIO pins 23 and 28 by default. To modify this, edit the `SUPPORTED_GPIO_PINS` list in `relay_module.py`.
+The service supports GPIO pins 23 and 18 by default. To modify this, edit the `SUPPORTED_GPIO_PINS` list in `relay_module.py`.
 
 ### Pulse Duration
 
@@ -312,7 +312,7 @@ Set the `RELAY_SECRET` environment variable in the `.env` file for production us
 
 ## Hardware Setup
 
-1. Connect your relay modules to GPIO pins 23 and 28
+1. Connect your relay modules to GPIO pins 23 and 18
 2. Ensure proper grounding and power supply
 3. Test the connections before running the service
 4. The relay is triggered by setting the GPIO pin LOW for 250ms
