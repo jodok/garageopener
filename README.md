@@ -270,7 +270,7 @@ The service uses a Python virtual environment to manage dependencies:
 
 - **System packages**: `python3-rpi.gpio` is installed system-wide via apt (required for GPIO access)
 - **Application packages**: Only python-dotenv is installed in the virtual environment
-- **Location**: Virtual environment is created in `venv/` directory
+- **Location**: Virtual environment is created in `.venv/` directory
 - **Service**: Systemd service automatically uses the virtual environment's Python interpreter
 
 ### Manual Virtual Environment Management
@@ -279,13 +279,13 @@ If you need to work with the virtual environment manually:
 
 ```bash
 # Activate the virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Install additional packages
 pip install package_name
 
 # Run the application directly
-python relay_module_light.py
+python relay_module.py
 
 # Deactivate when done
 deactivate
@@ -369,7 +369,7 @@ sudo netstat -tlnp | grep 8080
 python3 -c "import RPi.GPIO; print('GPIO module available')"
 
 # Check if virtual environment can access GPIO
-./venv/bin/python -c "import RPi.GPIO; print('GPIO module available in venv')"
+./.venv/bin/python -c "import RPi.GPIO; print('GPIO module available in .venv')"
 
 # Check GPIO permissions
 ls -la /dev/gpiomem
@@ -385,7 +385,7 @@ ls -la .env
 grep RELAY_SECRET .env
 
 # Test if the secret is being loaded correctly
-./venv/bin/python -c "from dotenv import load_dotenv; import os; load_dotenv(); print('Secret:', os.environ.get('RELAY_SECRET', 'NOT_FOUND'))"
+./.venv/bin/python -c "from dotenv import load_dotenv; import os; load_dotenv(); print('Secret:', os.environ.get('RELAY_SECRET', 'NOT_FOUND'))"
 ```
 
 ### Network connectivity issues
@@ -405,15 +405,15 @@ sudo ufw status
 
 ```bash
 # Check if virtual environment exists
-ls -la venv/
+ls -la .venv/
 
 # Recreate virtual environment if needed
-rm -rf venv/
-python3 -m venv venv
-./venv/bin/pip install -r requirements_light.txt
+rm -rf .venv/
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt
 
 # Check if service can access virtual environment
-sudo systemctl status relay-module-light.service
+sudo systemctl status relay-module.service
 ```
 
 ## Uninstallation
@@ -435,7 +435,7 @@ sudo ./uninstall.sh
 - `requirements.txt` - Minimal Python dependencies for virtual environment
 - `.env.template` - Template for environment configuration
 - `.env` - Environment configuration (created during installation)
-- `venv/` - Python virtual environment (created during installation)
+- `.venv/` - Python virtual environment (created during installation)
 
 ## Performance Benefits
 

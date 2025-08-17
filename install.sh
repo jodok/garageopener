@@ -25,7 +25,7 @@ echo "Using installation directory: $INSTALL_DIR"
 
 # Install systemd service
 echo "Installing systemd service..."
-cp "$INSTALL_DIR/relay-module-light.service" /etc/systemd/system/
+cp "$INSTALL_DIR/relay-module.service" /etc/systemd/system/
 systemctl daemon-reload
 
 # Install system dependencies
@@ -35,8 +35,12 @@ apt install -y python3-rpi.gpio python3-pip python3-venv
 
 # Create and activate virtual environment
 echo "Setting up virtual environment..."
-python3 -m venv "$INSTALL_DIR/venv"
-"$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements_light.txt"
+python3 -m venv "$INSTALL_DIR/.venv"
+"$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+
+# Ensure virtual environment is owned by the user
+chown -R jodok:jodok "$INSTALL_DIR/.venv"
+echo "✅ Virtual environment created and owned by jodok user"
 
 # Generate random secret and create .env file
 echo "Generating random authorization secret..."
