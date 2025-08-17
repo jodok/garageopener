@@ -45,7 +45,7 @@ def trigger_relay(gpio_pin):
 
 def check_health():
     """Check service health"""
-    url = f"{BASE_URL}/health"
+    url = f"{BASE_URL}/system/health"
     try:
         response = requests.get(url)
         print(f"Health Check - Status: {response.status_code}")
@@ -58,7 +58,7 @@ def check_health():
 
 def get_status():
     """Get service status"""
-    url = f"{BASE_URL}/status"
+    url = f"{BASE_URL}/system/status"
     try:
         response = requests.get(url)
         print(f"Status Check - Status: {response.status_code}")

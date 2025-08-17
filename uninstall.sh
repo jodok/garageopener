@@ -24,6 +24,7 @@ systemctl daemon-reload
 
 # Note: Installation directory is git checkout, not removed
 echo "Note: Installation directory is a git checkout and will not be removed"
+echo "Note: Virtual environment in venv/ directory is not removed"
 
 # Note: Logs are handled by systemd journal
 echo "Note: Logs are stored in systemd journal"

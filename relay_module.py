@@ -6,11 +6,13 @@ import sys
 import os
 import hashlib
 import hmac
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import RPi.GPIO as GPIO
 import json
 import logging
 from datetime import datetime
+from flask import Flask, request, jsonify
+from flask_restx import Api, Resource, fields, Namespace
+from functools import wraps
 
 # Configure logging for systemd
 logging.basicConfig(
@@ -31,91 +33,174 @@ AUTHORIZATION_SECRET = os.environ.get(
 )  # Set via environment variable
 PULSE_DURATION = 0.25  # Duration in seconds to keep GPIO LOW
 
+# Initialize Flask app
+app = Flask(__name__)
+api = Api(
+    app,
+    version="1.0",
+    title="Raspberry Pi Relay Module API",
+    description="A REST API for controlling relay modules connected to Raspberry Pi GPIO pins",
+    doc="/docs",
+    authorizations={
+        "apikey": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "Authorization",
+            "description": "HMAC-SHA256 hash of request body using RELAY_SECRET",
+        }
+    },
+    security="apikey",
+)
 
-class RelayModuleHandler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        """Handle POST requests for relay control"""
-        if self.path == "/relay/trigger":
-            self.handle_relay_trigger()
-        else:
-            self.send_error(404, "Not Found")
+# Create namespaces
+relay_ns = Namespace("relay", description="Relay control operations")
+system_ns = Namespace("system", description="System status and health operations")
 
-    def do_GET(self):
-        """Handle GET requests for status and health checks"""
-        if self.path == "/health":
-            self.handle_health_check()
-        elif self.path == "/status":
-            self.handle_status()
-        else:
-            self.send_error(404, "Not Found")
+api.add_namespace(relay_ns)
+api.add_namespace(system_ns)
 
-    def verify_authorization(self):
-        """Verify the authorization hash in the request header"""
-        auth_header = self.headers.get("Authorization")
+# Define models for Swagger documentation
+relay_trigger_model = api.model(
+    "RelayTrigger",
+    {
+        "gpio_pin": fields.Integer(
+            required=True,
+            description="GPIO pin number to trigger",
+            example=23,
+            enum=SUPPORTED_GPIO_PINS,
+        )
+    },
+)
+
+success_response_model = api.model(
+    "SuccessResponse",
+    {
+        "status": fields.String(description="Response status", example="success"),
+        "message": fields.String(description="Response message"),
+        "gpio_pin": fields.Integer(description="GPIO pin that was triggered"),
+        "pulse_duration": fields.Float(description="Duration of the pulse in seconds"),
+        "timestamp": fields.String(description="ISO timestamp of the operation"),
+    },
+)
+
+error_response_model = api.model(
+    "ErrorResponse",
+    {
+        "status": fields.String(description="Response status", example="error"),
+        "message": fields.String(description="Error message"),
+        "timestamp": fields.String(description="ISO timestamp of the error"),
+    },
+)
+
+health_response_model = api.model(
+    "HealthResponse",
+    {
+        "status": fields.String(description="Health status", example="healthy"),
+        "service": fields.String(description="Service name"),
+        "timestamp": fields.String(description="ISO timestamp"),
+    },
+)
+
+status_response_model = api.model(
+    "StatusResponse",
+    {
+        "status": fields.String(description="Service status", example="running"),
+        "service": fields.String(description="Service name"),
+        "supported_gpio_pins": fields.List(
+            fields.Integer, description="List of supported GPIO pins"
+        ),
+        "pulse_duration": fields.Float(description="Default pulse duration in seconds"),
+        "timestamp": fields.String(description="ISO timestamp"),
+    },
+)
+
+
+def verify_authorization(f):
+    """Decorator to verify authorization hash"""
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
         if not auth_header:
-            return False
+            return {
+                "status": "error",
+                "message": "Unauthorized - Missing authorization header",
+                "timestamp": datetime.now().isoformat(),
+            }, 401
 
         try:
             # Expected format: "Bearer <hash>"
             if not auth_header.startswith("Bearer "):
-                return False
+                return {
+                    "status": "error",
+                    "message": "Unauthorized - Invalid authorization format",
+                    "timestamp": datetime.now().isoformat(),
+                }, 401
 
             provided_hash = auth_header[7:]  # Remove "Bearer " prefix
 
             # Get request body for hash verification
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length).decode("utf-8")
+            body = request.get_data(as_text=True)
 
             # Calculate expected hash
             expected_hash = hmac.new(
                 AUTHORIZATION_SECRET.encode(), body.encode(), hashlib.sha256
             ).hexdigest()
 
-            return hmac.compare_digest(provided_hash, expected_hash)
+            if not hmac.compare_digest(provided_hash, expected_hash):
+                return {
+                    "status": "error",
+                    "message": "Unauthorized - Invalid authorization hash",
+                    "timestamp": datetime.now().isoformat(),
+                }, 401
+
+            return f(*args, **kwargs)
 
         except Exception as e:
             logger.error(f"Authorization verification error: {e}")
-            return False
+            return {
+                "status": "error",
+                "message": "Unauthorized - Authorization verification failed",
+                "timestamp": datetime.now().isoformat(),
+            }, 401
 
-    def handle_relay_trigger(self):
-        """Handle relay trigger requests"""
+    return decorated_function
+
+
+@relay_ns.route("/trigger")
+class RelayTrigger(Resource):
+    @relay_ns.doc(
+        "trigger_relay",
+        security="apikey",
+        responses={
+            200: ("Relay triggered successfully", success_response_model),
+            400: ("Bad request", error_response_model),
+            401: ("Unauthorized", error_response_model),
+            500: ("Internal server error", error_response_model),
+        },
+    )
+    @relay_ns.expect(relay_trigger_model)
+    @verify_authorization
+    def post(self):
+        """Trigger a relay on the specified GPIO pin"""
         try:
-            # Verify authorization
-            if not self.verify_authorization():
-                self.send_response(401)
-                self.send_header("Content-type", "application/json")
-                self.end_headers()
-                response = {
+            data = request.get_json()
+
+            if not data:
+                return {
                     "status": "error",
-                    "message": "Unauthorized - Invalid or missing authorization hash",
+                    "message": "Request body is required",
                     "timestamp": datetime.now().isoformat(),
-                }
-                self.wfile.write(json.dumps(response).encode())
-                return
-
-            # Parse request body
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length).decode("utf-8")
-
-            try:
-                data = json.loads(body)
-            except json.JSONDecodeError:
-                self.send_error(400, "Invalid JSON in request body")
-                return
+                }, 400
 
             # Validate GPIO pin
             gpio_pin = data.get("gpio_pin")
             if not gpio_pin or gpio_pin not in SUPPORTED_GPIO_PINS:
-                self.send_response(400)
-                self.send_header("Content-type", "application/json")
-                self.end_headers()
-                response = {
+                return {
                     "status": "error",
                     "message": f"Invalid GPIO pin. Supported pins: {SUPPORTED_GPIO_PINS}",
                     "timestamp": datetime.now().isoformat(),
-                }
-                self.wfile.write(json.dumps(response).encode())
-                return
+                }, 400
 
             logger.info(f"Received relay trigger command for GPIO {gpio_pin}")
 
@@ -135,11 +220,6 @@ class RelayModuleHandler(BaseHTTPRequestHandler):
             # Clean up GPIO
             GPIO.cleanup()
 
-            # Send success response
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-
             response = {
                 "status": "success",
                 "message": f"Relay triggered on GPIO {gpio_pin}",
@@ -147,33 +227,42 @@ class RelayModuleHandler(BaseHTTPRequestHandler):
                 "pulse_duration": PULSE_DURATION,
                 "timestamp": datetime.now().isoformat(),
             }
-            self.wfile.write(json.dumps(response).encode())
 
             logger.info(f"Relay trigger executed successfully on GPIO {gpio_pin}")
+            return response, 200
 
         except Exception as e:
             logger.error(f"Error executing relay trigger: {e}")
-            self.send_error(500, f"Internal Server Error: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Internal Server Error: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            }, 500
 
-    def handle_health_check(self):
-        """Handle health check requests"""
-        self.send_response(200)
-        self.send_header("Content-type", "application/json")
-        self.end_headers()
 
+@system_ns.route("/health")
+class HealthCheck(Resource):
+    @system_ns.doc(
+        "health_check", responses={200: ("Service is healthy", health_response_model)}
+    )
+    def get(self):
+        """Check the health status of the service"""
         response = {
             "status": "healthy",
             "service": "raspberry-pi-relay-module",
             "timestamp": datetime.now().isoformat(),
         }
-        self.wfile.write(json.dumps(response).encode())
+        return response, 200
 
-    def handle_status(self):
-        """Handle status requests"""
-        self.send_response(200)
-        self.send_header("Content-type", "application/json")
-        self.end_headers()
 
+@system_ns.route("/status")
+class Status(Resource):
+    @system_ns.doc(
+        "get_status",
+        responses={200: ("Service status retrieved", status_response_model)},
+    )
+    def get(self):
+        """Get the current status and configuration of the service"""
         response = {
             "status": "running",
             "service": "raspberry-pi-relay-module",
@@ -181,11 +270,7 @@ class RelayModuleHandler(BaseHTTPRequestHandler):
             "pulse_duration": PULSE_DURATION,
             "timestamp": datetime.now().isoformat(),
         }
-        self.wfile.write(json.dumps(response).encode())
-
-    def log_message(self, format, *args):
-        """Override to use our logger instead of stderr"""
-        logger.info(f"{self.address_string()} - {format % args}")
+        return response, 200
 
 
 def signal_handler(sig, frame):
@@ -195,24 +280,23 @@ def signal_handler(sig, frame):
 
 
 def main():
-    """Main function to start the HTTP server"""
+    """Main function to start the Flask server"""
     # Set up signal handlers
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
     try:
-        # Create and start the server
-        server = HTTPServer((HOST, PORT), RelayModuleHandler)
         logger.info(f"Starting Raspberry Pi relay module server on {HOST}:{PORT}")
         logger.info("Available endpoints:")
         logger.info("  POST /relay/trigger - Trigger relay on specified GPIO pin")
-        logger.info("  GET  /health        - Health check endpoint")
-        logger.info("  GET  /status        - Service status and configuration")
+        logger.info("  GET  /system/health - Health check endpoint")
+        logger.info("  GET  /system/status - Service status and configuration")
+        logger.info("  GET  /docs          - Swagger API documentation")
         logger.info(f"Supported GPIO pins: {SUPPORTED_GPIO_PINS}")
         logger.info(f"Pulse duration: {PULSE_DURATION}s")
         logger.info("Set RELAY_SECRET environment variable for authorization")
 
-        server.serve_forever()
+        app.run(host=HOST, port=PORT, debug=False)
 
     except KeyboardInterrupt:
         logger.info("Server stopped by user")

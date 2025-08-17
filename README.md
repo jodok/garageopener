@@ -9,6 +9,7 @@ A Python HTTP daemon for controlling relay modules via HTTP commands on a Raspbe
 - Support for multiple GPIO pins (23, 28)
 - HMAC-SHA256 authorization for security
 - Health check and status endpoints
+- **Interactive Swagger API documentation**
 - Automatic systemd service management
 - Systemd journal logging
 
@@ -19,6 +20,7 @@ A Python HTTP daemon for controlling relay modules via HTTP commands on a Raspbe
 - User `jodok` (assumed to exist)
 - Git repository cloned to desired location
 - Run installation script with `sudo` from the repository directory
+- Internet connection for installing Python dependencies
 
 ## Installation
 
@@ -39,7 +41,9 @@ A Python HTTP daemon for controlling relay modules via HTTP commands on a Raspbe
 
 The installation script will:
 
-- Install required dependencies (`python3-rpi.gpio`)
+- Install system dependencies (`python3-rpi.gpio`, `python3-pip`, `python3-venv`)
+- Create a Python virtual environment (`venv/`)
+- Install Python dependencies (Flask, Flask-RESTX) in the virtual environment
 - Use files from the current directory (git checkout)
 - Add user `jodok` to the `gpio` group (uses existing system udev rules)
 - Install and enable the systemd service
@@ -79,7 +83,7 @@ Authorization: Bearer <hmac-sha256-hash>
 }
 ```
 
-### GET `/health`
+### GET `/system/health`
 
 Health check endpoint.
 
@@ -93,7 +97,7 @@ Health check endpoint.
 }
 ```
 
-### GET `/status`
+### GET `/system/status`
 
 Service status and configuration information.
 
@@ -108,6 +112,10 @@ Service status and configuration information.
   "timestamp": "2024-01-15T10:30:00.123456"
 }
 ```
+
+### GET `/docs`
+
+Interactive Swagger API documentation. Visit this endpoint in your web browser to explore the API interactively.
 
 ## Usage
 
@@ -127,10 +135,13 @@ export RELAY_SECRET="your_secure_secret_here"
 
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:8080/system/health
 
 # Get status
-curl http://localhost:8080/status
+curl http://localhost:8080/system/status
+
+# View Swagger documentation (in browser)
+# http://localhost:8080/docs
 
 # Trigger relay on GPIO 23 (requires proper authorization)
 curl -X POST http://localhost:8080/relay/trigger \
@@ -203,11 +214,38 @@ sudo journalctl -u relay-module.service -f
 sudo journalctl -u relay-module.service -n 50
 ```
 
+## Virtual Environment
+
+The service uses a Python virtual environment to manage dependencies:
+
+- **System packages**: `python3-rpi.gpio` is installed system-wide via apt (required for GPIO access)
+- **Application packages**: Flask and Flask-RESTX are installed in the virtual environment
+- **Location**: Virtual environment is created in `venv/` directory
+- **Service**: Systemd service automatically uses the virtual environment's Python interpreter
+
+### Manual Virtual Environment Management
+
+If you need to work with the virtual environment manually:
+
+```bash
+# Activate the virtual environment
+source venv/bin/activate
+
+# Install additional packages
+pip install package_name
+
+# Run the application directly
+python relay_module.py
+
+# Deactivate when done
+deactivate
+```
+
 ## Configuration
 
 ### Supported GPIO Pins
 
-The service supports GPIO pins 23 and 28 by default. To modify this, edit the `SUPPORTED_GPIO_PINS` list in `garage_opener.py`.
+The service supports GPIO pins 23 and 28 by default. To modify this, edit the `SUPPORTED_GPIO_PINS` list in `relay_module.py`.
 
 ### Pulse Duration
 
@@ -277,8 +315,11 @@ sudo netstat -tlnp | grep 8080
 ### GPIO errors
 
 ```bash
-# Check if RPi.GPIO is installed
+# Check if RPi.GPIO is installed system-wide
 python3 -c "import RPi.GPIO; print('GPIO module available')"
+
+# Check if virtual environment can access GPIO
+./venv/bin/python -c "import RPi.GPIO; print('GPIO module available in venv')"
 
 # Check GPIO permissions
 ls -la /dev/gpiomem
@@ -307,6 +348,21 @@ curl http://localhost:8080/health
 sudo ufw status
 ```
 
+### Virtual environment issues
+
+```bash
+# Check if virtual environment exists
+ls -la venv/
+
+# Recreate virtual environment if needed
+rm -rf venv/
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+
+# Check if service can access virtual environment
+sudo systemctl status relay-module.service
+```
+
 ## Uninstallation
 
 To remove the service:
@@ -318,11 +374,13 @@ sudo ./uninstall.sh
 
 ## Files
 
-- `relay_module.py` - Main HTTP server and GPIO control
+- `relay_module.py` - Main Flask server and GPIO control with Swagger documentation
 - `relay-module.service` - Systemd service definition
 - `install.sh` - Installation script
 - `uninstall.sh` - Uninstallation script
 - `test_relay_api.py` - API testing script with authorization examples
+- `requirements.txt` - Python dependencies for virtual environment
+- `venv/` - Python virtual environment (created during installation)
 
 ## License
 

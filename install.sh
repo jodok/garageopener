@@ -28,10 +28,15 @@ echo "Installing systemd service..."
 cp "$INSTALL_DIR/relay-module.service" /etc/systemd/system/
 systemctl daemon-reload
 
-# Install dependencies
-echo "Installing dependencies..."
+# Install system dependencies
+echo "Installing system dependencies..."
 apt update
-apt install -y python3-rpi.gpio
+apt install -y python3-rpi.gpio python3-pip python3-venv
+
+# Create and activate virtual environment
+echo "Setting up virtual environment..."
+python3 -m venv "$INSTALL_DIR/venv"
+"$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 
 # Set up GPIO permissions
 echo "Setting up GPIO permissions..."
@@ -68,8 +73,9 @@ echo "Note: This assumes you're running the script from the git checkout directo
 echo ""
 echo "Available endpoints:"
 echo "  POST /relay/trigger - Trigger relay on specified GPIO pin"
-echo "  GET  /health        - Health check endpoint"
-echo "  GET  /status        - Service status and configuration"
+echo "  GET  /system/health - Health check endpoint"
+echo "  GET  /system/status - Service status and configuration"
+echo "  GET  /docs          - Swagger API documentation"
 echo ""
 echo "Useful commands:"
 echo "  sudo systemctl status relay-module.service  # Check service status"
@@ -80,6 +86,7 @@ echo "  sudo journalctl -u relay-module.service -f  # Follow logs in real-time"
 echo "  sudo journalctl -u relay-module.service -n 50  # Show last 50 log entries"
 echo ""
 echo "Test the service:"
-echo "  curl http://localhost:8080/health"
-echo "  curl http://localhost:8080/status"
+echo "  curl http://localhost:8080/system/health"
+echo "  curl http://localhost:8080/system/status"
 echo "  python3 test_relay_api.py  # Run the test script"
+echo "  # Visit http://localhost:8080/docs for interactive API documentation"
