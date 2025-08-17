@@ -1,0 +1,22 @@
+[Unit]
+Description=Garage Opener HTTP Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=jodok
+Group=jodok
+WorkingDirectory=/home/jodok/sandbox/garage-opener
+ExecStart=/usr/bin/python3 /home/jodok/sandbox/garage-opener/garage_opener.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=garage-opener
+
+# GPIO access requires special permissions
+# The install script will set up udev rules for GPIO access
+
+[Install]
+WantedBy=multi-user.target
