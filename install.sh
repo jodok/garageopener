@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Raspberry Pi Relay Module Installation Script
-# This script installs the relay module service on a Raspberry Pi
+# Raspberry Pi Relay Module Lightweight Installation Script
+# This script installs the lightweight relay module service on a Raspberry Pi
 
 set -e
 
-echo "=== Raspberry Pi Relay Module Installation Script ==="
+echo "=== Raspberry Pi Relay Module Lightweight Installation Script ==="
 
 # Check if running as root (via sudo)
 if [[ $EUID -ne 0 ]]; then
@@ -25,7 +25,7 @@ echo "Using installation directory: $INSTALL_DIR"
 
 # Install systemd service
 echo "Installing systemd service..."
-cp "$INSTALL_DIR/relay-module.service" /etc/systemd/system/
+cp "$INSTALL_DIR/relay-module-light.service" /etc/systemd/system/
 systemctl daemon-reload
 
 # Install system dependencies
@@ -36,7 +36,7 @@ apt install -y python3-rpi.gpio python3-pip python3-venv
 # Create and activate virtual environment
 echo "Setting up virtual environment..."
 python3 -m venv "$INSTALL_DIR/venv"
-"$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+"$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements_light.txt"
 
 # Generate random secret and create .env file
 echo "Generating random authorization secret..."
@@ -101,7 +101,7 @@ echo "Available endpoints:"
 echo "  POST /relay/trigger - Trigger relay on specified GPIO pin"
 echo "  GET  /system/health - Health check endpoint"
 echo "  GET  /system/status - Service status and configuration"
-echo "  GET  /docs          - Swagger API documentation"
+echo "  GET  /docs          - Interactive API documentation"
 echo ""
 echo "Useful commands:"
 echo "  sudo systemctl status relay-module.service  # Check service status"

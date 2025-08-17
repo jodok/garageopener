@@ -1,5 +1,5 @@
 [Unit]
-Description=Raspberry Pi Relay Module REST API Service
+Description=Raspberry Pi Relay Module Lightweight REST API Service
 After=network.target
 Wants=network.target
 
