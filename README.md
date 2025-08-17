@@ -21,6 +21,7 @@ A Python HTTP daemon for controlling relay modules via HTTP commands on a Raspbe
 - Git repository cloned to desired location
 - Run installation script with `sudo` from the repository directory
 - Internet connection for installing Python dependencies
+- OpenSSL (for generating random secrets)
 
 ## Installation
 
@@ -43,7 +44,9 @@ The installation script will:
 
 - Install system dependencies (`python3-rpi.gpio`, `python3-pip`, `python3-venv`)
 - Create a Python virtual environment (`venv/`)
-- Install Python dependencies (Flask, Flask-RESTX) in the virtual environment
+- Install Python dependencies (Flask, Flask-RESTX, python-dotenv) in the virtual environment
+- Generate a random authorization secret
+- Create a `.env` file with the secret and configuration
 - Use files from the current directory (git checkout)
 - Add user `jodok` to the `gpio` group (uses existing system udev rules)
 - Install and enable the systemd service
@@ -119,16 +122,46 @@ Interactive Swagger API documentation. Visit this endpoint in your web browser t
 
 ## Usage
 
-### Setting the Authorization Secret
+### Environment Configuration
 
-Set the `RELAY_SECRET` environment variable in the systemd service file or export it before running:
+The service uses a `.env` file for configuration. During installation, a random authorization secret is generated and stored in this file.
+
+**Important**: Keep your `.env` file secure and never commit it to version control.
+
+#### Manual Configuration
+
+If you need to customize the configuration:
 
 ```bash
-# Edit the service file
-sudo nano /etc/systemd/system/garage-opener.service
+# Copy the template
+cp .env.template .env
 
-# Or export for testing
-export RELAY_SECRET="your_secure_secret_here"
+# Edit the configuration
+nano .env
+```
+
+#### Available Configuration Options
+
+```bash
+# Required: Authorization secret for API access
+RELAY_SECRET=your_secure_secret_here
+
+# Optional: Override default configuration
+HOST=0.0.0.0
+PORT=8080
+PULSE_DURATION=0.25
+```
+
+#### Regenerating the Secret
+
+To generate a new random secret:
+
+```bash
+# Generate new secret
+openssl rand -hex 32
+
+# Update .env file
+nano .env
 ```
 
 ### Example API Calls
@@ -152,16 +185,13 @@ curl -X POST http://localhost:8080/relay/trigger \
 
 ### Using the Test Script
 
-The included test script demonstrates proper API usage:
+The included test script automatically reads the secret from the `.env` file:
 
 ```bash
 # Install requests if not already installed
 pip3 install requests
 
-# Set the secret
-export RELAY_SECRET="your_secure_secret_here"
-
-# Run the test
+# Run the test (uses .env file automatically)
 python3 test_relay_api.py
 ```
 
@@ -328,11 +358,14 @@ ls -la /dev/gpiomem
 ### Authorization errors
 
 ```bash
-# Check if RELAY_SECRET is set
-echo $RELAY_SECRET
+# Check if .env file exists
+ls -la .env
 
-# Verify the service file has the environment variable
-sudo systemctl show relay-module.service | grep Environment
+# Check if RELAY_SECRET is set in .env
+grep RELAY_SECRET .env
+
+# Test if the secret is being loaded correctly
+./venv/bin/python -c "from dotenv import load_dotenv; import os; load_dotenv(); print('Secret:', os.environ.get('RELAY_SECRET', 'NOT_FOUND'))"
 ```
 
 ### Network connectivity issues
@@ -380,6 +413,8 @@ sudo ./uninstall.sh
 - `uninstall.sh` - Uninstallation script
 - `test_relay_api.py` - API testing script with authorization examples
 - `requirements.txt` - Python dependencies for virtual environment
+- `.env.template` - Template for environment configuration
+- `.env` - Environment configuration (created during installation)
 - `venv/` - Python virtual environment (created during installation)
 
 ## License

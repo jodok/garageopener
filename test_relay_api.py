@@ -5,10 +5,18 @@ import json
 import hashlib
 import hmac
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configuration
 BASE_URL = "http://localhost:8080"
-SECRET = os.environ.get("RELAY_SECRET", "your_secure_secret_here")
+SECRET = os.environ.get("RELAY_SECRET")
+if not SECRET:
+    print("❌ RELAY_SECRET not found in .env file or environment variables")
+    print("   Please ensure .env file exists with RELAY_SECRET set")
+    exit(1)
 
 
 def generate_auth_hash(body):

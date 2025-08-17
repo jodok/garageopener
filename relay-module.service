@@ -14,7 +14,6 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=raspberry-pi-relay
-Environment=RELAY_SECRET=your_secure_secret_here
 
 # GPIO access requires special permissions
 # The install script will set up udev rules for GPIO access

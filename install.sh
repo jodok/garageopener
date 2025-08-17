@@ -38,6 +38,32 @@ echo "Setting up virtual environment..."
 python3 -m venv "$INSTALL_DIR/venv"
 "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 
+# Generate random secret and create .env file
+echo "Generating random authorization secret..."
+RANDOM_SECRET=$(openssl rand -hex 32)
+if [ -f "$INSTALL_DIR/.env" ]; then
+    echo "⚠️  .env file already exists, preserving existing configuration"
+else
+    echo "Creating .env file with random secret..."
+    cat > "$INSTALL_DIR/.env" << EOF
+# Raspberry Pi Relay Module Environment Configuration
+# Generated during installation
+
+# Authorization secret for API access
+RELAY_SECRET=$RANDOM_SECRET
+
+# Optional: Override default configuration
+# HOST=0.0.0.0
+# PORT=8080
+# PULSE_DURATION=0.25
+EOF
+    chown jodok:jodok "$INSTALL_DIR/.env"
+    chmod 600 "$INSTALL_DIR/.env"
+    echo "✅ Created .env file with random secret"
+    echo "   Secret: $RANDOM_SECRET"
+    echo "   File: $INSTALL_DIR/.env"
+fi
+
 # Set up GPIO permissions
 echo "Setting up GPIO permissions..."
 # Add jodok user to gpio group (group should already exist)

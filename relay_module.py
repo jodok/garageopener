@@ -13,6 +13,10 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_restx import Api, Resource, fields, Namespace
 from functools import wraps
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging for systemd
 logging.basicConfig(
@@ -30,7 +34,7 @@ HOST = "0.0.0.0"
 PORT = 8080
 AUTHORIZATION_SECRET = os.environ.get(
     "RELAY_SECRET", "default_secret_change_me"
-)  # Set via environment variable
+)  # Set via .env file or environment variable
 PULSE_DURATION = 0.25  # Duration in seconds to keep GPIO LOW
 
 # Initialize Flask app
