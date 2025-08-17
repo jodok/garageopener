@@ -89,11 +89,45 @@ class RelayModuleHandler(BaseHTTPRequestHandler):
             logger.error(f"Authorization verification error: {e}")
             return False
 
+    def verify_authorization_with_body(self, body):
+        """Verify the authorization hash in the request header using provided body"""
+        auth_header = self.headers.get("Authorization")
+        if not auth_header:
+            return False
+
+        try:
+            # Expected format: "Bearer <hash>"
+            if not auth_header.startswith("Bearer "):
+                return False
+
+            provided_hash = auth_header[7:]  # Remove "Bearer " prefix
+
+            # Log authorization attempt for debugging
+            logger.info(f"Authorization attempt with provided body: '{body}'")
+
+            # Calculate expected hash
+            expected_hash = hmac.new(
+                AUTHORIZATION_SECRET.encode(), body.encode(), hashlib.sha256
+            ).hexdigest()
+
+            return hmac.compare_digest(provided_hash, expected_hash)
+
+        except Exception as e:
+            logger.error(f"Authorization verification error: {e}")
+            return False
+
     def handle_relay_trigger(self):
         """Handle relay trigger requests"""
         try:
-            # Verify authorization
-            if not self.verify_authorization():
+            # Read request body once
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length).decode("utf-8")
+
+            # Log the received body for debugging
+            logger.info(f"Received request body: '{body}' (length: {len(body)})")
+
+            # Verify authorization using the body we just read
+            if not self.verify_authorization_with_body(body):
                 self.send_response(401)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
@@ -106,12 +140,6 @@ class RelayModuleHandler(BaseHTTPRequestHandler):
                 return
 
             # Parse request body
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length).decode("utf-8")
-
-            # Log the received body for debugging
-            logger.info(f"Received request body: '{body}' (length: {len(body)})")
-
             try:
                 data = json.loads(body)
             except json.JSONDecodeError as e:
